@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CreditPro - 学分认定进度追踪</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&family=Outfit:wght@700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="style.css">
+    <!-- 引入 JSZip 用于打包证明材料 -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+<body class="dark-theme">
+    <!-- 登录遮罩层 ... -->
+    <!-- 登录遮罩层 -->
+    <div id="login-overlay" class="modal-overlay">
+        <div class="modal glass-panel" style="width:360px; text-align:center;">
+            <div class="logo" style="justify-content:center; margin-bottom:24px;">
+                <span class="logo-icon">✨</span>
+                <span class="logo-text">CreditPro</span>
+            </div>
+            <p style="margin-bottom:20px; color:var(--text-dim);">请输入您的姓名以进入系统</p>
+            <input type="text" id="login-name" placeholder="您的姓名" style="margin-bottom:16px;">
+            <button id="login-btn" class="btn-primary block">登录系统</button>
+            <p id="admin-hint" style="font-size:12px; margin-top:16px; color:var(--text-dim);">管理员请使用预设姓名登录</p>
+        </div>
+    </div>
+
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <span class="logo-icon">✨</span>
+                <span class="logo-text">CreditPro</span>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="#" class="nav-item active" data-view="dashboard">仪表盘</a>
+                <a href="#" class="nav-item" data-view="records">学分记录</a>
+                <a href="#" class="nav-item" data-view="activities">最新活动</a>
+                <a href="#" class="nav-item hidden" id="nav-admin-users" data-view="users">学员管理</a>
+                <a href="#" class="nav-item" data-view="rules">认定细则</a>
+            </nav>
+            <div class="user-profile">
+                <div class="avatar" id="user-avatar">U</div>
+                <div class="info">
+                    <p class="name" id="user-display-name">当前学员</p>
+                    <p class="status" id="user-role-badge">学分认定中</p>
+                </div>
+                <button id="logout-btn" title="退出登录" style="background:none; border:none; color:var(--text-dim); cursor:pointer; margin-left:auto;">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+                </button>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <header class="top-nav glass-panel">
+                <h2 id="view-title">仪表盘</h2>
+                <div class="top-actions">
+                    <button id="export-excel-btn" class="btn-primary hidden" style="background:var(--secondary); border: 1px solid var(--accent);">导出报表</button>
+                    <button id="export-zip-btn" class="btn-primary hidden" style="background:var(--secondary); border: 1px solid var(--accent);">打包全员档案 (ZIP)</button>
+                    <button id="post-activity-btn" class="btn-primary hidden" style="background:var(--secondary); border: 1px solid var(--accent);">发布活动</button>
+                    <button id="add-record-btn" class="btn-primary">新增申请</button>
+                </div>
+            </header>
+
+            <div id="app-view">
+                <!-- 动态内容渲染区 -->
+            </div>
+        </main>
+    </div>
+
+    <!-- 新增记录模态框 -->
+    <div id="modal-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>新增学分申请</h3>
+                <button id="close-modal" class="btn-icon">&times;</button>
+            </div>
+            <form id="record-form">
+                <div class="form-group">
+                    <label>认定项目</label>
+                    <select id="item-select" required>
+                        <optgroup label="必修项" id="opt-compulsory"></optgroup>
+                        <optgroup label="选修项" id="opt-elective"></optgroup>
+                    </select>
+                </div>
+                
+                <div id="dynamic-inputs"></div>
+
+                <div class="form-group">
+                    <label>证明描述</label>
+                    <textarea id="proof-text" placeholder="说明申请理由或背景..."></textarea>
+                </div>
+
+                <div class="form-group">
+                    <label>照片凭证 (可选)</label>
+                    <div class="file-upload-zone" id="drop-zone">
+                        <input type="file" id="proof-image" accept="image/*" class="hidden">
+                        <div class="upload-placeholder">
+                            <span>📸 点击或拖拽图片上传预览</span>
+                            <img id="image-preview" class="hidden">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="form-actions">
+                    <button type="submit" class="btn-primary block">提交认证申请</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- 发布活动模态框 -->
+    <div id="activity-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>发布最新活动</h3>
+                <button id="close-activity-modal" class="btn-icon">&times;</button>
+            </div>
+            <form id="activity-form">
+                <div class="form-group">
+                    <label>活动描述</label>
+                    <textarea id="activity-text" placeholder="输入活动详细信息..." required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>活动配图</label>
+                    <div class="file-upload-zone" id="activity-drop-zone">
+                        <input type="file" id="activity-image" accept="image/*" class="hidden">
+                        <div class="upload-placeholder">
+                            <span id="act-upload-icon">📸 点击上传配图</span>
+                            <img id="activity-preview" class="hidden" style="max-height:150px; border-radius:8px;">
+                        </div>
+                    </div>
+                </div>
+                <button type="submit" class="btn-primary block">立即发布</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 调整进度模态框 -->
+    <div id="adjustment-overlay" class="modal-overlay hidden">
+        <div class="modal glass-panel">
+            <div class="modal-header">
+                <h3>调整进度 - <span id="adj-user-name"></span></h3>
+                <button id="close-adjustment-modal" class="btn-icon">&times;</button>
+            </div>
+            <form id="adjustment-form">
+                <input type="hidden" id="adj-target-user">
+                <div class="form-group">
+                    <label>认定事项 (二级分类)</label>
+                    <select id="adj-item-select" required>
+                        <optgroup label="必修项" id="adj-opt-compulsory"></optgroup>
+                        <optgroup label="选修项" id="adj-opt-elective"></optgroup>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>调整分值 (正数为加分，负数为减分)</label>
+                    <input type="number" id="adj-value" step="0.5" required>
+                </div>
+                <div class="form-group">
+                    <label>调整理由</label>
+                    <textarea id="adj-reason" placeholder="输入调整原因..." required></textarea>
+                </div>
+                <button type="submit" class="btn-primary block">确认调整</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="main.js"></script>
+</body>
+</html>
