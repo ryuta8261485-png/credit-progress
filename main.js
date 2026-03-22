@@ -27,7 +27,8 @@ let state = {
     activities: [],
     activeView: 'dashboard',
     tempImage: null,
-    tempActImage: null
+    tempActImage: null,
+    pollingTimer: null
 };
 
 async function init() {
@@ -75,8 +76,28 @@ function setupLoginLogic() {
 
 function checkAuth() {
     const overlay = document.getElementById('login-overlay');
-    if (!state.currentUser) overlay.classList.remove('hidden');
-    else { overlay.classList.add('hidden'); updateUserProfile(); toggleAdminControls(); renderAll(); }
+    if (!state.currentUser) {
+        overlay.classList.remove('hidden');
+        stopPolling();
+    } else {
+        overlay.classList.add('hidden');
+        updateUserProfile();
+        toggleAdminControls();
+        renderAll();
+        if (state.currentUser.role === 'admin') startPolling();
+    }
+}
+
+function startPolling() {
+    stopPolling();
+    state.pollingTimer = setInterval(async () => {
+        await loadData();
+        renderAll();
+    }, 30000);
+}
+
+function stopPolling() {
+    if (state.pollingTimer) { clearInterval(state.pollingTimer); state.pollingTimer = null; }
 }
 
 function toggleAdminControls() {
@@ -282,11 +303,43 @@ function renderAll() {
 }
 
 function renderDashboard(totals, details) {
+    const isAdmin = state.currentUser?.role === 'admin';
+    const pendingRecords = isAdmin ? state.records.filter(r => r.status === 'pending') : [];
+
+    const pendingSection = isAdmin ? `
+        <div class="section-container" style="margin-bottom:24px;">
+            <h2 style="display:flex;align-items:center;gap:12px;">
+                待审核申请
+                ${pendingRecords.length > 0 ? `<span style="background:var(--accent);color:var(--bg-dark);border-radius:50%;width:24px;height:24px;display:inline-flex;align-items:center;justify-content:center;font-size:13px;font-weight:700;">${pendingRecords.length}</span>` : ''}
+            </h2>
+            ${pendingRecords.length === 0
+                ? '<p style="color:var(--text-dim);">暂无待审记录 🎉</p>'
+                : pendingRecords.slice().reverse().map(r => {
+                    const item = CONFIG[r.category]?.find(it => it.id === r.itemId) || { name: '调整项' };
+                    const score = calculateScore(r);
+                    return `<div class="record-entry glass-panel" style="padding:16px 20px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;">
+                        <div>
+                            <strong style="color:var(--text-bright);">${r.userName}</strong>
+                            <span style="color:var(--text-dim);margin:0 8px;">·</span>
+                            <span>${item.name}</span>
+                            <span style="color:var(--accent);margin-left:8px;">+${score.toFixed(1)}分</span>
+                            <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">${r.timestamp} | ${r.proofText || '无备注'}</div>
+                        </div>
+                        <div style="display:flex;gap:8px;flex-shrink:0;margin-left:16px;">
+                            <button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="approved" style="padding:6px 16px;">准予</button>
+                            <button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="rejected" style="padding:6px 16px;background:rgba(255,80,80,0.2);color:#ff6b6b;">驳回</button>
+                        </div>
+                    </div>`;
+                }).join('')
+            }
+        </div>` : '';
+
     document.getElementById('app-view').innerHTML = `
         <div class="dashboard-grid">
             <div class="stat-card glass-panel"><h3>必修进度</h3><div class="progress-section"><div class="progress-ring-container"><svg class="progress-ring" width="120" height="120"><circle class="progress-ring-bg" cx="60" cy="60" r="54"></circle><circle class="progress-ring-bar" cx="60" cy="60" r="54" style="stroke-dashoffset: ${339.29 - (339.29 * Math.min(totals.compulsory / 80, 1))}"></circle></svg><div class="progress-text">${Math.round((totals.compulsory / 80) * 100)}%</div></div><div class="stats-detail"><p><strong>${totals.compulsory.toFixed(1)}</strong> / 80分</p></div></div></div>
             <div class="stat-card glass-panel"><h3>选修累计</h3><div class="elective-stats"><div class="big-number">${totals.elective.toFixed(1)}</div><p>分</p></div></div>
         </div>
+        ${pendingSection}
         <div class="section-container"><h2>进度明细</h2><div class="credits-list">${[...CONFIG.compulsory, ...CONFIG.elective].map(item => { const earned = details[item.id] || 0; return `<div class="credit-item glass-panel"><span>${item.name}</span><span>${earned.toFixed(1)}${item.target ? ' / ' + item.target : ''}</span><span class="item-status ${earned >= (parseFloat(item.target) || 0) ? 'text-accent' : ''}">${earned >= (parseFloat(item.target) || 0) ? '已达标' : '认证中'}</span></div>`; }).join('')}</div></div>
     `;
 }
