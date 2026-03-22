@@ -14,7 +14,7 @@ const ADMIN_LIST = (process.env.ADMIN_NAMES || '').split(',').map(n => n.trim().
 app.use(cors());
 app.use(bodyParser.json({ limit: '50mb' }));
 app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
+app.use(express.static(__dirname));
 // 初始化数据库
 function initDB() {
     if (!fs.existsSync(DB_FILE)) {
