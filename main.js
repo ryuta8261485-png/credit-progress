@@ -19,8 +19,7 @@ const CONFIG = {
 };
 
 // 安全加固：不在此处列举管理员白名单，通过服务端 API 异步获取身份内容内容内容
-const API_BASE = 'http://localhost:3000/api';
-
+const API_BASE = '/api';
 // 状态
 let state = {
     currentUser: JSON.parse(localStorage.getItem('current_user')) || null,
@@ -59,7 +58,7 @@ function setupLoginLogic() {
     loginBtn.onclick = async () => {
         const nameInput = loginInput.value.trim();
         if (!nameInput) return alert('请输入姓名');
-        
+
         // 调用服务端接口确认身份 (确保敏感名单物理隔离于代码仓内容内容)
         try {
             const authRes = await fetch(`${API_BASE}/auth?name=${encodeURIComponent(nameInput)}`);
@@ -152,7 +151,7 @@ function resetForm() { document.getElementById('record-form').reset(); state.tem
 function resetActForm() { if (document.getElementById('activity-form')) document.getElementById('activity-form').reset(); state.tempActImage = null; if (document.getElementById('activity-preview')) document.getElementById('activity-preview').classList.add('hidden'); if (document.getElementById('act-upload-icon')) document.getElementById('act-upload-icon').classList.remove('hidden'); }
 
 function populateSelects() {
-    const groups = [ { c: 'opt-compulsory', a: 'adj-opt-compulsory', items: CONFIG.compulsory, cat: 'compulsory' }, { c: 'opt-elective', a: 'adj-opt-elective', items: CONFIG.elective, cat: 'elective' } ];
+    const groups = [{ c: 'opt-compulsory', a: 'adj-opt-compulsory', items: CONFIG.compulsory, cat: 'compulsory' }, { c: 'opt-elective', a: 'adj-opt-elective', items: CONFIG.elective, cat: 'elective' }];
     groups.forEach(g => {
         const el = document.getElementById(g.c); const aEl = document.getElementById(g.a);
         if (el) { el.innerHTML = ''; g.items.forEach(i => el.appendChild(new Option(i.name, `${g.cat}:${i.id}`))); }
@@ -166,20 +165,20 @@ function updateDynamicInputs(value) {
     if (item.base !== undefined || item.unit) container.innerHTML += `<div class="form-group"><label>数量 (${item.unit || '个'})</label><input type="number" id="input-value" step="0.5" required min="0"></div>`;
     if (item.addons) Object.entries(item.addons).forEach(([key, val]) => { const label = key === 'summary' ? '含有心得' : key === 'speech' ? '含有发言' : key === 'activity' ? '参加分享活动' : '附加项'; container.innerHTML += `<div class="form-group" style="display:flex;gap:8px;"><input type="checkbox" id="addon-${key}" style="width:auto"><label style="margin:0">${label}</label></div>`; });
     if (item.awards) {
-        if (item.cumulative) container.innerHTML += `<label>等级 (多选)</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">${Object.keys(item.awards).map(lvl => `<div style="display:flex;gap:4px;"><input type="checkbox" class="award-check" value="${lvl}"> ${lvl==='school'?'校级':lvl==='provincial'?'省级':lvl==='national'?'国家级':lvl}</div>`).join('')}</div>`;
-        else container.innerHTML += `<div class="form-group"><label>奖项级别</label><select id="input-award"><option value="">参与/普通</option>${Object.keys(item.awards).map(lvl => `<option value="${lvl}">${lvl==='first'?'一等奖':lvl==='second'?'二等奖':lvl==='third'?'三等奖':lvl}</option>`).join('')}</div>`;
+        if (item.cumulative) container.innerHTML += `<label>等级 (多选)</label><div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px;">${Object.keys(item.awards).map(lvl => `<div style="display:flex;gap:4px;"><input type="checkbox" class="award-check" value="${lvl}"> ${lvl === 'school' ? '校级' : lvl === 'provincial' ? '省级' : lvl === 'national' ? '国家级' : lvl}</div>`).join('')}</div>`;
+        else container.innerHTML += `<div class="form-group"><label>奖项级别</label><select id="input-award"><option value="">参与/普通</option>${Object.keys(item.awards).map(lvl => `<option value="${lvl}">${lvl === 'first' ? '一等奖' : lvl === 'second' ? '二等奖' : lvl === 'third' ? '三等奖' : lvl}</option>`).join('')}</div>`;
     }
 }
 
 async function saveRecord() {
     const btn = document.querySelector('#record-form .btn-primary');
     btn.disabled = true; btn.textContent = '保存中...';
-    
+
     const valInput = document.getElementById('input-value'); const select = document.getElementById('item-select').value; const [category, id] = select.split(':');
     const record = { id: Date.now(), userName: state.currentUser.name || '未知', category, itemId: id, value: valInput ? parseFloat(valInput.value) : 1, addons: [], awards: [], proofText: document.getElementById('proof-text').value, proofImage: state.tempImage, status: 'pending', timestamp: new Date().toLocaleDateString() };
     document.querySelectorAll('#dynamic-inputs input[type="checkbox"]:checked').forEach(cb => { if (cb.classList.contains('award-check')) record.awards.push(cb.value); else record.addons.push(cb.id.replace('addon-', '')); });
     if (document.getElementById('input-award')?.value) record.awards.push(document.getElementById('input-award').value);
-    
+
     try {
         const res = await fetch(`${API_BASE}/records`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
         if (res.ok) { state.records.push(await res.json()); }
@@ -187,7 +186,7 @@ async function saveRecord() {
         state.records.push(record); // Fallback to local push
         localStorage.setItem('credit_records', JSON.stringify(state.records));
     }
-    
+
     document.getElementById('modal-overlay').classList.add('hidden');
     btn.disabled = false; btn.textContent = '确认提交';
     renderAll();
@@ -203,10 +202,10 @@ function toggleSelectAll(checked) { document.querySelectorAll('.user-select-chec
 async function saveAdjustment() {
     const target = document.getElementById('adj-target-user').value; const itemSelect = document.getElementById('adj-item-select').value; const [category, itemId] = itemSelect.split(':');
     const baseRecord = { id: Date.now(), category, itemId, value: parseFloat(document.getElementById('adj-value').value), proofText: `[管理员调整进度] 理由: ${document.getElementById('adj-reason').value}`, status: 'approved', timestamp: new Date().toLocaleDateString(), adminAction: true };
-    
+
     let toSave = [];
-    if (target === 'BATCH') { 
-        const selected = Array.from(document.querySelectorAll('.user-select-check:checked')).map(cb => cb.value); 
+    if (target === 'BATCH') {
+        const selected = Array.from(document.querySelectorAll('.user-select-check:checked')).map(cb => cb.value);
         toSave = selected.map((u, i) => ({ ...baseRecord, id: Date.now() + i, userName: u }));
     }
     else { toSave = [{ ...baseRecord, userName: target }]; }
@@ -218,7 +217,7 @@ async function saveAdjustment() {
         state.records.push(...toSave);
         localStorage.setItem('credit_records', JSON.stringify(state.records));
     }
-    
+
     document.getElementById('adjustment-overlay').classList.add('hidden');
     renderAll();
 }
@@ -253,7 +252,7 @@ async function postActivity() {
 
 function exportToExcel() {
     const users = [...new Set(state.records.map(r => r.userName))]; let csv = "\ufeff姓名,必修学分,选修学分,总得分\n";
-    users.forEach(u => { const uRecs = state.records.filter(r => r.userName === u && r.status === 'approved'); let comp = 0, elec = 0; uRecs.forEach(r => { const s = calculateScore(r); if (r.category === 'compulsory') comp += s; else elec += s; }); csv += `${u},${comp.toFixed(1)},${elec.toFixed(1)},${(comp+elec).toFixed(1)}\n`; });
+    users.forEach(u => { const uRecs = state.records.filter(r => r.userName === u && r.status === 'approved'); let comp = 0, elec = 0; uRecs.forEach(r => { const s = calculateScore(r); if (r.category === 'compulsory') comp += s; else elec += s; }); csv += `${u},${comp.toFixed(1)},${elec.toFixed(1)},${(comp + elec).toFixed(1)}\n`; });
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' }); const link = document.createElement("a"); link.href = URL.createObjectURL(blob); link.download = `统计.csv`; link.click();
 }
 
@@ -261,7 +260,7 @@ async function exportAllZips() {
     if (typeof JSZip === 'undefined') return alert('库未加载'); const zip = new JSZip(); const users = [...new Set(state.records.map(r => r.userName))]; const root = zip.folder(`档案_${new Date().toLocaleDateString()}`);
     for (const user of users) {
         const userFolder = root.folder(`学员_${user}`); const userRecords = state.records.filter(r => r.userName === user);
-        userRecords.forEach((r, i) => { const item = (CONFIG[r.category]?.find(it => it.id === r.itemId) || { name: '调整项' }); const fileName = `${i+1}.${item.name}_${r.timestamp.replace(/\//g, '-')}`; userFolder.file(`${fileName}.txt`, `分值: ${calculateScore(r)}\n备注: ${r.proofText}`); if (r.proofImage) userFolder.file(`${fileName}.png`, r.proofImage.split(',')[1], { base64: true }); });
+        userRecords.forEach((r, i) => { const item = (CONFIG[r.category]?.find(it => it.id === r.itemId) || { name: '调整项' }); const fileName = `${i + 1}.${item.name}_${r.timestamp.replace(/\//g, '-')}`; userFolder.file(`${fileName}.txt`, `分值: ${calculateScore(r)}\n备注: ${r.proofText}`); if (r.proofImage) userFolder.file(`${fileName}.png`, r.proofImage.split(',')[1], { base64: true }); });
     }
     const content = await zip.generateAsync({ type: "blob" }); const link = document.createElement("a"); link.href = URL.createObjectURL(content); link.download = `学分档案.zip`; link.click();
 }
@@ -288,14 +287,14 @@ function renderDashboard(totals, details) {
             <div class="stat-card glass-panel"><h3>必修进度</h3><div class="progress-section"><div class="progress-ring-container"><svg class="progress-ring" width="120" height="120"><circle class="progress-ring-bg" cx="60" cy="60" r="54"></circle><circle class="progress-ring-bar" cx="60" cy="60" r="54" style="stroke-dashoffset: ${339.29 - (339.29 * Math.min(totals.compulsory / 80, 1))}"></circle></svg><div class="progress-text">${Math.round((totals.compulsory / 80) * 100)}%</div></div><div class="stats-detail"><p><strong>${totals.compulsory.toFixed(1)}</strong> / 80分</p></div></div></div>
             <div class="stat-card glass-panel"><h3>选修累计</h3><div class="elective-stats"><div class="big-number">${totals.elective.toFixed(1)}</div><p>分</p></div></div>
         </div>
-        <div class="section-container"><h2>进度明细</h2><div class="credits-list">${[...CONFIG.compulsory, ...CONFIG.elective].map(item => { const earned = details[item.id] || 0; return `<div class="credit-item glass-panel"><span>${item.name}</span><span>${earned.toFixed(1)}${item.target ? ' / '+item.target : ''}</span><span class="item-status ${earned >= (parseFloat(item.target) || 0) ? 'text-accent' : ''}">${earned >= (parseFloat(item.target) || 0) ? '已达标' : '认证中'}</span></div>`; }).join('')}</div></div>
+        <div class="section-container"><h2>进度明细</h2><div class="credits-list">${[...CONFIG.compulsory, ...CONFIG.elective].map(item => { const earned = details[item.id] || 0; return `<div class="credit-item glass-panel"><span>${item.name}</span><span>${earned.toFixed(1)}${item.target ? ' / ' + item.target : ''}</span><span class="item-status ${earned >= (parseFloat(item.target) || 0) ? 'text-accent' : ''}">${earned >= (parseFloat(item.target) || 0) ? '已达标' : '认证中'}</span></div>`; }).join('')}</div></div>
     `;
 }
 
 function renderRecordsList(records) {
     document.getElementById('app-view').innerHTML = `<div class="section-container"><h2>申请记录</h2>${records.length ? records.slice().reverse().map(r => {
         const item = CONFIG[r.category]?.find(it => it.id === r.itemId) || { name: '调整项' }; const score = calculateScore(r);
-        return `<div class="record-entry glass-panel" style="padding:20px; margin-bottom:12px;"><div style="display:flex; justify-content:space-between;"><div><h4>${item.name} <span class="badge">${r.userName}</span></h4><small>${r.timestamp}</small></div><div class="${r.status==='approved'?'text-accent':r.status==='rejected'?'text-danger':''}" style="font-weight:700; text-align:right;">${score > 0 ? '+' : ''}${score.toFixed(1)}<div style="font-size:12px;">${r.status==='approved'?'通过':r.status==='rejected'?'驳回':'待审'}</div></div></div><p style="font-size:13px; color:var(--text-dim); margin-top:10px;">${r.proofText || '无备注'}</p>${state.currentUser.role==='admin'&&r.status==='pending'?`<div style="margin-top:12px;"><button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="approved">准予</button><button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="rejected">驳回</button></div>`:''}</div>`;
+        return `<div class="record-entry glass-panel" style="padding:20px; margin-bottom:12px;"><div style="display:flex; justify-content:space-between;"><div><h4>${item.name} <span class="badge">${r.userName}</span></h4><small>${r.timestamp}</small></div><div class="${r.status === 'approved' ? 'text-accent' : r.status === 'rejected' ? 'text-danger' : ''}" style="font-weight:700; text-align:right;">${score > 0 ? '+' : ''}${score.toFixed(1)}<div style="font-size:12px;">${r.status === 'approved' ? '通过' : r.status === 'rejected' ? '驳回' : '待审'}</div></div></div><p style="font-size:13px; color:var(--text-dim); margin-top:10px;">${r.proofText || '无备注'}</p>${state.currentUser.role === 'admin' && r.status === 'pending' ? `<div style="margin-top:12px;"><button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="approved">准予</button><button class="btn-primary admin-action-btn" data-id="${r.id}" data-action="rejected">驳回</button></div>` : ''}</div>`;
     }).join('') : '<p>暂无数据</p>'}</div>`;
 }
 
@@ -341,9 +340,9 @@ function renderRules() {
 function renderRuleRow(item) {
     let std = '';
     if (item.id === 'practice_edu') std = '校级2分, 省级3分, 国家级4分';
-    else if (item.awards) std = Object.entries(item.awards).map(([k,v]) => `${k==='first'?'一等':k==='second'?'二等':k==='third'?'三等':k==='school'?'校':k==='provincial'?'省':k==='national'?'国':k}${v}分`).join(', ');
-    else std = `${item.base}分/${item.unit||'项'}`;
-    
+    else if (item.awards) std = Object.entries(item.awards).map(([k, v]) => `${k === 'first' ? '一等' : k === 'second' ? '二等' : k === 'third' ? '三等' : k === 'school' ? '校' : k === 'provincial' ? '省' : k === 'national' ? '国' : k}${v}分`).join(', ');
+    else std = `${item.base}分/${item.unit || '项'}`;
+
     return `
         <div class="rule-row glass-panel" style="padding:20px; margin-bottom:12px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
