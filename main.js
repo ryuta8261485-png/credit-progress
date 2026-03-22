@@ -209,7 +209,7 @@ async function saveRecord() {
     }
 
     document.getElementById('modal-overlay').classList.add('hidden');
-    btn.disabled = false; btn.textContent = '确认提交';
+    btn.disabled = false; btn.textContent = '提交认证申请';
     renderAll();
 }
 
@@ -295,10 +295,15 @@ function calculateScore(r) {
 }
 
 function renderAll() {
-    if (!state.currentUser) return; const view = state.activeView; const displayRecords = state.currentUser.role === 'admin' ? state.records : state.records.filter(r => r.userName === state.currentUser.name);
+    if (!state.currentUser) return;
+    const view = state.activeView;
+    // displayRecords: admin sees all for records/users views; dashboard always shows own stats
+    const displayRecords = state.currentUser.role === 'admin' ? state.records : state.records.filter(r => r.userName === state.currentUser.name);
+    const myRecords = state.records.filter(r => r.userName === state.currentUser.name);
     document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.view === view));
+    // Dashboard totals always based on current user's own records
     const totals = { compulsory: 0, elective: 0 }; const details = {};
-    displayRecords.forEach(r => { const s = calculateScore(r); if (r.status === 'approved') { totals[r.category] += s; details[r.itemId] = (details[r.itemId] || 0) + s; } });
+    myRecords.forEach(r => { const s = calculateScore(r); if (r.status === 'approved') { totals[r.category] += s; details[r.itemId] = (details[r.itemId] || 0) + s; } });
     if (view === 'dashboard') renderDashboard(totals, details); else if (view === 'records') renderRecordsList(displayRecords); else if (view === 'activities') renderActivities(); else if (view === 'users') renderUsersList(); else if (view === 'rules') renderRules();
 }
 
