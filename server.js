@@ -7,7 +7,9 @@ const bodyParser = require('body-parser');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const DB_FILE = path.join(__dirname, process.env.DB_FILE || 'database.json');
+const DB_FILE = process.env.DB_FILE
+    ? (path.isAbsolute(process.env.DB_FILE) ? process.env.DB_FILE : path.join(__dirname, process.env.DB_FILE))
+    : path.join(__dirname, 'database.json');
 const ADMIN_LIST = (process.env.ADMIN_NAMES || '').split(',').map(n => n.trim().toLowerCase());
 
 // 中间件
@@ -17,6 +19,8 @@ app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(__dirname));
 // 初始化数据库
 function initDB() {
+    const dir = path.dirname(DB_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     if (!fs.existsSync(DB_FILE)) {
         const initialData = { records: [], activities: [] };
         fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
