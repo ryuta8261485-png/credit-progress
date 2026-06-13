@@ -21,18 +21,65 @@ app.use(express.static(__dirname));
 function initDB() {
     const dir = path.dirname(DB_FILE);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    
+    let needsInit = false;
     if (!fs.existsSync(DB_FILE)) {
+        needsInit = true;
+    } else {
+        try {
+            const content = fs.readFileSync(DB_FILE, 'utf8').trim();
+            if (!content) {
+                needsInit = true;
+            } else {
+                JSON.parse(content);
+            }
+        } catch (e) {
+            needsInit = true;
+        }
+    }
+
+    if (needsInit) {
         const initialData = { records: [], activities: [] };
         fs.writeFileSync(DB_FILE, JSON.stringify(initialData, null, 2));
+        console.log(`[Database] 数据文件不存在或已损坏，已自动初始化: ${DB_FILE}`);
     }
 }
 
+let dbCache = null;
+
 function readDB() {
-    return JSON.parse(fs.readFileSync(DB_FILE, 'utf8'));
+    if (dbCache) return dbCache;
+    try {
+        if (!fs.existsSync(DB_FILE)) {
+            dbCache = { records: [], activities: [] };
+            return dbCache;
+        }
+        const content = fs.readFileSync(DB_FILE, 'utf8').trim();
+        if (!content) {
+            dbCache = { records: [], activities: [] };
+            return dbCache;
+        }
+        const data = JSON.parse(content);
+        dbCache = {
+            records: Array.isArray(data.records) ? data.records : [],
+            activities: Array.isArray(data.activities) ? data.activities : []
+        };
+        return dbCache;
+    } catch (err) {
+        console.error('读取数据库文件失败，已返回空数据集:', err);
+        return { records: [], activities: [] };
+    }
 }
 
 function writeDB(data) {
-    fs.writeFileSync(DB_FILE, JSON.stringify(data, null, 2));
+    dbCache = data;
+    try {
+        const tempFile = `${DB_FILE}.tmp`;
+        fs.writeFileSync(tempFile, JSON.stringify(data, null, 2));
+        fs.renameSync(tempFile, DB_FILE);
+    } catch (err) {
+        console.error('写入数据库文件失败:', err);
+    }
 }
 
 // 身份校验接口 (安全加固：不在前端暴露白名单)

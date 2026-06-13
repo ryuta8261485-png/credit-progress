@@ -32,6 +32,9 @@ let state = {
 };
 
 async function init() {
+    if (window.location.protocol === 'file:') {
+        alert('警告：当前是以本地文件形式（双击 HTML）打开的网页，无法与后端 API 通信。请通过浏览器访问 http://localhost:3000/ 以确保数据正常加载！');
+    }
     setupLoginLogic();
     setupEventListeners();
     populateSelects();
@@ -44,8 +47,11 @@ async function loadData() {
         const res = await fetch(`${API_BASE}/data`);
         if (!res.ok) throw new Error('后端未响应');
         const data = await res.json();
-        state.records = data.records;
-        state.activities = data.activities;
+        state.records = data.records || [];
+        state.activities = data.activities || [];
+        // 成功获取服务器数据后，将其同步更新到本地缓存中以防止未来断连时显示为空
+        localStorage.setItem('credit_records', JSON.stringify(state.records));
+        localStorage.setItem('app_activities', JSON.stringify(state.activities));
     } catch (err) {
         console.error('无法连接到后端，将使用本地缓存备用', err);
         state.records = JSON.parse(localStorage.getItem('credit_records')) || [];
@@ -202,7 +208,10 @@ async function saveRecord() {
 
     try {
         const res = await fetch(`${API_BASE}/records`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(record) });
-        if (res.ok) { state.records.push(await res.json()); }
+        if (res.ok) { 
+            state.records.push(await res.json()); 
+            localStorage.setItem('credit_records', JSON.stringify(state.records));
+        }
     } catch (err) {
         state.records.push(record); // Fallback to local push
         localStorage.setItem('credit_records', JSON.stringify(state.records));
@@ -233,7 +242,10 @@ async function saveAdjustment() {
 
     try {
         const res = await fetch(`${API_BASE}/adjustments`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(toSave) });
-        if (res.ok) { state.records.push(...toSave); }
+        if (res.ok) { 
+            state.records.push(...toSave); 
+            localStorage.setItem('credit_records', JSON.stringify(state.records));
+        }
     } catch (err) {
         state.records.push(...toSave);
         localStorage.setItem('credit_records', JSON.stringify(state.records));
@@ -248,12 +260,19 @@ async function updateRecordStatus(id, newStatus) {
         const res = await fetch(`${API_BASE}/records/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ status: newStatus }) });
         if (res.ok) {
             const idx = state.records.findIndex(r => r.id === id);
-            if (idx !== -1) state.records[idx].status = newStatus;
+            if (idx !== -1) {
+                state.records[idx].status = newStatus;
+                localStorage.setItem('credit_records', JSON.stringify(state.records));
+            }
             renderAll();
         }
     } catch (err) {
         const idx = state.records.findIndex(r => r.id === id);
-        if (idx !== -1) { state.records[idx].status = newStatus; renderAll(); }
+        if (idx !== -1) { 
+            state.records[idx].status = newStatus; 
+            localStorage.setItem('credit_records', JSON.stringify(state.records));
+            renderAll(); 
+        }
     }
 }
 
@@ -261,7 +280,10 @@ async function postActivity() {
     const activity = { id: Date.now(), text: document.getElementById('activity-text').value, image: state.tempActImage, timestamp: new Date().toLocaleDateString(), author: state.currentUser.name };
     try {
         const res = await fetch(`${API_BASE}/activities`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(activity) });
-        if (res.ok) { state.activities.push(await res.json()); }
+        if (res.ok) { 
+            state.activities.push(await res.json()); 
+            localStorage.setItem('app_activities', JSON.stringify(state.activities));
+        }
     } catch (err) {
         state.activities.push(activity);
         localStorage.setItem('app_activities', JSON.stringify(state.activities));
